@@ -36,6 +36,19 @@ class TSWalker(Recommender):
         self.computeUCorr()
 
     def predict(self, u, i):
+        twcount = 0
+        while twcount < self.tw:
+            p = 1/tcount
+            q = random.randrange(0,len(self.userSim[u]))
+            u1 = self.userSim[u][0]
+            if self.userSim[u][q][1] == 1:
+                if self.dao.rating(u1,i) != 0:
+                    rating = self.dao.rating(u1,i)
+                    twcount += 1
+                else:
+                    
+                        
+                
         # find the closest neighbors of user u
         topUsers = sorted(self.userSim[u].iteritems(), key=lambda d: d[1], reverse=True)
         userCount = self.neighbors
@@ -73,5 +86,12 @@ class TSWalker(Recommender):
                         self.userSim.set(u1, u2, 1)
                     else:
                         self.userSim.set(u1, u2, 0)
+            tcount = 0
+            for i in range (len(self.userSim[u1])):
+                if self.userSim[u1][i][1]==1:
+                    tcount += 1
             print 'user ' + u1 + ' finished.'
         print 'The user correlation has been figured out.'
+        
+    def selSimItem(self,u1,u2,i):
+        for k,v in 
