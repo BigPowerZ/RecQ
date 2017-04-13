@@ -2,13 +2,14 @@ from baseclass.Recommender import Recommender
 from tool import qmath
 from structure.symmetricMatrix import SymmetricMatrix
 from tool.config import LineConfig
-
+from math import exp
 
 class TSWalker(Recommender):
     def __init__(self,conf, trainingSet=None, testSet=None, fold='[1]'):
         super(TSWalker, self).__init__(conf, trainingSet, testSet, fold)
         self.userSim = SymmetricMatrix(len(self.dao.user))
         self.itemSim = SymmetricMatrix(len(self.dao.item))
+        
 
     def readConfiguration(self):
         self.sim = self.config['similarity']
@@ -17,7 +18,7 @@ class TSWalker(Recommender):
         TW = LineConfig(self.config['TSWalker'])
         self.k = int(TW['-k'])
         self.v = int(TW['-v'])
-        self.twNum = int (TW['-tw'])
+        self.tw = int (TW['-tw'])
 
 
     def printAlgorConfig(self):
@@ -34,42 +35,43 @@ class TSWalker(Recommender):
 
     def initModel(self):
         self.computeUCorr()
+        self.computeICorr()
 
     def predict(self, u, i):
         twcount = 0
+        pre = []
+        tk = 0
         while twcount < self.tw:
-            p = 1/tcount
-            q = random.randrange(0,len(self.userSim[u]))
-            u1 = self.userSim[u][0]
-            if self.userSim[u][q][1] == 1:
-                if self.dao.rating(u1,i) != 0:
-                    rating = self.dao.rating(u1,i)
-                    twcount += 1
+            while tk < self.k:
+                pu = random.randrange(0,len(self.dao.user))
+                userStr ={v:k for k,v in self.dao.user}
+                u1 = userStr[pu]
+                if u1 not in pre:
+                    pre.append(u1)
                 else:
-                    
-                        
-                
-        # find the closest neighbors of user u
-        topUsers = sorted(self.userSim[u].iteritems(), key=lambda d: d[1], reverse=True)
-        userCount = self.neighbors
-        if userCount > len(topUsers):
-            userCount = len(topUsers)
-        # predict
-        sum, denom = 0, 0
-        for n in range(userCount):
-            # if user n has rating on item i
-            similarUser = topUsers[n][0]
-            if self.dao.rating(similarUser, i) != 0:
-                similarity = topUsers[n][1]
-                rating = self.dao.rating(similarUser, i)
-                sum += similarity * (rating - self.dao.userMeans[similarUser])
-                denom += similarity
-        if sum == 0:
-            # no users have rating on item i,return the average rating of user u
-            if not self.dao.containsUser(u):
-                # user u has no ratings in the training set,return the global mean
-                return self.dao.globalMean
-            return self.dao.userMeans[u]
+                    continue
+                if self.userSim[u][pu][1] != 1:
+                    continue
+                else:
+                    if self.dao.rating(u1,i) != 0:
+                        rating = self.dao.rating(u1,i)
+                        twcount += 1
+                    else:
+                        tk += 1
+                        pk = self.proOfK(u1,i,tk)
+                        pv = random.randrange(0,1)
+                        if pv < pk:
+                            uj = self.dao.trainingmatrix.matrix_User[self.dao.getUserId(u1)].keys()
+                            temp = 0
+                            bestItem = None
+                            for j in uj:
+                                if self.itemSim[i][j] > temp:
+                                    temp = self.itemSim[i][j]
+                                    bestItem = j
+                            rating = self.dao.rating(u1,j)
+                            twcount += 1
+                        else:
+                            u = u1
         pred = self.dao.userMeans[u] + sum / float(denom)
         return pred
 
@@ -93,5 +95,50 @@ class TSWalker(Recommender):
             print 'user ' + u1 + ' finished.'
         print 'The user correlation has been figured out.'
         
-    def selSimItem(self,u1,u2,i):
-        for k,v in 
+    def computeICorr(self):
+        'compute correlation among items'
+        for i in self.dao.item:
+            for j in self.dao.item:
+                if i <> j :
+                    if self.itemSim.contains(i,j):
+                        continue
+                    aui = self.dao.itemRated(i)
+                    auj = self.dao.itemRated(j)
+                    cuser = []
+                    for u in aui:
+                        for v in auj:
+                            if u[0] == v[0]:
+                                cuser.append(u[0]) 
+                    #sum = 0
+                    #d1 = 0
+                    #d2 = 0
+                    for cu in cuser:
+                        rui = self.dao.rating(cu,i)
+                        ruj = self.dao.rating(cu,j)
+                        umean = self.dao.userMeans[cu]
+                        sum += (rui-umean)*(ruj-umean)
+                        d1 += (rui-umean)**2
+                    for r in self.dao.user:
+                        ui = self.dao.rating(r,i)
+                        um = self.dao.userMeans[r]
+                        d2 += (ui-um)**2
+                    denom = sqrt(d1*d2)
+                    corr = float(sum) / denom
+                    l = len(cuser) / 2
+                    sim = corr / (1+exp(-l))
+                    self.itemSim.set(i,j,sim)
+            print 'item ' + i + ' finished.'
+        print 'The item correlation has been figured out.'
+    def proOfK(self,u,i,k):
+        res = []
+        urj = []
+        k = k / 2
+        for x,y in self.dao.trainingmatrix.matrix_User[self.dao.getUserId(u)]:
+            if y <> 0:
+                urj.append(x)
+        for j in urj:
+            res.append(self.itemSim[i][j])
+        res = res / (1+exp(-k))
+        return max(res)
+                            
+          
