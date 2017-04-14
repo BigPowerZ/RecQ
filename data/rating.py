@@ -130,6 +130,18 @@ class RatingDAO(object):
             return self.item[i]
         else:
             return -1
+    
+    def getItemStr(self,i):
+        key_list = []
+        value_list = []
+        for k,v in self.user.items():
+            key_list.append(k)
+            value_list.append(v)
+        if i in value_list:
+            i_index = value_list.index(i)
+            return key_list[i_index]
+        else:
+            return -1
         
     def trainingSize(self):
         return (len(self.user),len(self.item),len(self.trainingData))
