@@ -65,8 +65,8 @@ class TSWalker(Recommender):
                             temp = 0
                             bestItem = None
                             for j in uj:
-                                if self.itemSim[i][j] > temp:
-                                    temp = self.itemSim[i][j]
+                                if self.itemSim[i][j][0] > temp:
+                                    temp = self.itemSim[i][j][0]
                                     bestItem = j
                             rating += self.dao.rating(u1,bestItem)
                             twcount += 1
@@ -137,7 +137,7 @@ class TSWalker(Recommender):
             if y <> 0:
                 urj.append(x)
         for j in urj:
-            res.append(self.itemSim[i][j])
+            res.append(self.itemSim[i][j][0])
         res = res / (1+exp(-k))
         return max(res)
                             
