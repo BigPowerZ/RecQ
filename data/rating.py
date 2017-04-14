@@ -134,7 +134,7 @@ class RatingDAO(object):
     def getItemStr(self,i):
         key_list = []
         value_list = []
-        for k,v in self.user.items():
+        for k,v in self.item.items():
             key_list.append(k)
             value_list.append(v)
         if i in value_list:
