@@ -2,7 +2,7 @@ from baseclass.Recommender import Recommender
 from tool import qmath
 from structure.symmetricMatrix import SymmetricMatrix
 from tool.config import LineConfig
-from math import exp
+from math import exp,sqrt
 
 class TSWalker(Recommender):
     def __init__(self,conf, trainingSet=None, testSet=None, fold='[1]'):
@@ -41,11 +41,11 @@ class TSWalker(Recommender):
         twcount = 0
         pre = []
         tk = 0
+        rating = 0
         while twcount < self.tw:
             while tk < self.k:
                 pu = random.randrange(0,len(self.dao.user))
-                userStr ={v:k for k,v in self.dao.user}
-                u1 = userStr[pu]
+                u1 = self.dao.getUserStr(pu)
                 if u1 not in pre:
                     pre.append(u1)
                 else:
@@ -54,7 +54,7 @@ class TSWalker(Recommender):
                     continue
                 else:
                     if self.dao.rating(u1,i) != 0:
-                        rating = self.dao.rating(u1,i)
+                        rating += self.dao.rating(u1,i)
                         twcount += 1
                     else:
                         tk += 1
@@ -68,12 +68,12 @@ class TSWalker(Recommender):
                                 if self.itemSim[i][j] > temp:
                                     temp = self.itemSim[i][j]
                                     bestItem = j
-                            rating = self.dao.rating(u1,j)
+                            rating += self.dao.rating(u1,bestItem)
                             twcount += 1
                         else:
                             u = u1
-        pred = self.dao.userMeans[u] + sum / float(denom)
-        return pred
+        rating = rating / self.tw
+        return rating
 
     def computeUCorr(self):
         'compute correlation among users'
@@ -105,17 +105,17 @@ class TSWalker(Recommender):
                     aui = self.dao.itemRated(i)
                     auj = self.dao.itemRated(j)
                     cuser = []
-                    for u in aui:
-                        for v in auj:
-                            if u[0] == v[0]:
-                                cuser.append(u[0]) 
-                    #sum = 0
-                    #d1 = 0
-                    #d2 = 0
+                    for u in aui[0]:
+                        for v in auj[0]:
+                            if u == v:
+                                cuser.append(u)
+                    sum = 0
+                    d1 = 0
+                    d2 = 0
                     for cu in cuser:
-                        rui = self.dao.rating(cu,i)
-                        ruj = self.dao.rating(cu,j)
-                        umean = self.dao.userMeans[cu]
+                        rui = self.dao.rating(self.dao.getUserStr(cu),i)
+                        ruj = self.dao.rating(self.dao.getUserStr(cu),j)
+                        umean = self.dao.userMeans[self.dao.getUserStr(cu)]
                         sum += (rui-umean)*(ruj-umean)
                         d1 += (rui-umean)**2
                     for r in self.dao.user:
