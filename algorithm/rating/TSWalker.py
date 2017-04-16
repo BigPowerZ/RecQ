@@ -3,6 +3,7 @@ from tool import qmath
 from structure.symmetricMatrix import SymmetricMatrix
 from tool.config import LineConfig
 from math import exp,sqrt
+from random import random
 
 class TSWalker(Recommender):
     def __init__(self,conf, trainingSet=None, testSet=None, fold='[1]'):

@@ -14,7 +14,7 @@ if __name__ == '__main__':
     print '0. Analyze the input data.(Configure the visual.conf in config/visual first.)'
     print '1. UserKNN        2. ItemKNN        3. BasicMF        4. SlopeOne        5. RSTE'
     print '6. UserMean       7. ItemMean       8. SVD            9. PMF             10. TrustMF'
-    print '11. SocialMF      12. SoRec         13.SoReg          14.SVD++           15.EE'
+    print '11. SocialMF      12. SoRec         13.SoReg          14.SVD++           15.EE              16.TSWalker'
     print '-'*80
     algor = -1
     conf = -1
@@ -74,6 +74,9 @@ if __name__ == '__main__':
 
     elif order == 15:
         conf = Config('../config/EE.conf')
+
+    elif order == 16:
+        conf = Config('../config/TSWalker.conf')
 
 
     else:
