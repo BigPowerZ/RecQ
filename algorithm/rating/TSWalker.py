@@ -66,14 +66,14 @@ class TSWalker(Recommender):
                             temp = 0
                             bestItem = None
                             for j in uj:
-                                if self.itemSim[i][j][0] > temp:
-                                    temp = self.itemSim[i][j][0]
+                                if self.itemSim[i][self.dao.getItemStr(j)] > temp:
+                                    temp = self.itemSim[i][self.dao.getItemStr(j)]
                                     bestItem = j
-                            rating += self.dao.rating(u1,bestItem)
+                            rating += self.dao.rating(self.dao.getUserId(u1),self.dao.getItemStr(bestItem))
                             twcount += 1
                         else:
                             u = u1
-        rating = rating / self.tw
+        rating = rating / float(self.tw)
         return rating
 
     def computeUCorr(self):
@@ -125,7 +125,7 @@ class TSWalker(Recommender):
                         d2 += (ui-um)**2
                     denom = sqrt(d1*d2)
                     corr = float(sum) / denom
-                    l = len(cuser) / 2
+                    l = float(len(cuser)) / 2
                     sim = corr / (1+exp(-l))
                     self.itemSim.set(i,j,sim)
             print 'item ' + i + ' finished.'
@@ -133,13 +133,15 @@ class TSWalker(Recommender):
     def proOfK(self,u,i,k):
         res = []
         urj = []
-        k = k / 2
+        nk = float(k / 2)
         for x,y in self.dao.trainingmatrix.matrix_User[self.dao.getUserId(u)]:
             if y <> 0:
                 urj.append(x)
         for j in urj:
-            res.append(self.itemSim[i][j][0])
-        res = res / (1+exp(-k))
+            res.append(self.itemSim[i][j][1])
+        for r in res:
+            r = r / (1+exp(-nk))
+            res.append(r)
         return max(res)
                             
           
