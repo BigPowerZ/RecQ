@@ -18,7 +18,7 @@ class TSWalker(Recommender):
         self.neighbors = int(self.config['num.neighbors'])
         TW = LineConfig(self.config['TSWalker'])
         self.k = int(TW['-k'])
-        self.v = int(TW['-v'])
+        self.v = float(TW['-v'])
         self.tw = int (TW['-tw'])
 
 
@@ -30,13 +30,13 @@ class TSWalker(Recommender):
         print 'num.shrinkage:', self.config['num.shrinkage']
         print 'similarity:', self.config['similarity']
         print 'step: %d' %self.k
-        print 'Random Walk times: %d' %self.twNum
+        print 'Random Walk times: %d' %self.tw
         print 'The trust value of u: %d' %self.v
         print '=' * 80
 
     def initModel(self):
-        self.computeUCorr()
         self.computeICorr()
+        self.computeUCorr()
 
     def predict(self, u, i):
         twcount = 0
