@@ -3,7 +3,7 @@ from tool import qmath
 from structure.symmetricMatrix import SymmetricMatrix
 from tool.config import LineConfig
 from math import exp,sqrt
-from random import random
+from random import random,choice
 
 class TSWalker(Recommender):
     def __init__(self,conf, trainingSet=None, testSet=None, fold='[1]'):
@@ -31,7 +31,7 @@ class TSWalker(Recommender):
         print 'similarity:', self.config['similarity']
         print 'step: %d' %self.k
         print 'Random Walk times: %d' %self.tw
-        print 'The trust value of u: %d' %self.v
+        print 'The trust value of u: %f' %self.v
         print '=' * 80
 
     def initModel(self):
@@ -45,13 +45,13 @@ class TSWalker(Recommender):
         rating = 0
         while twcount < self.tw:
             while tk < self.k:
-                pu = random.randrange(0,len(self.dao.user))
-                u1 = self.dao.getUserStr(pu)
+                u1 = choice(list(self.dao.user))
                 if u1 not in pre:
                     pre.append(u1)
                 else:
                     continue
-                if self.userSim[u][pu][1] != 1:
+                pu = self.dao.getUserId(u1)
+                if self.userSim[u][u1] != 1:
                     continue
                 else:
                     if self.dao.rating(u1,i) != 0:
@@ -62,14 +62,14 @@ class TSWalker(Recommender):
                         pk = self.proOfK(u1,i,tk)
                         pv = random.randrange(0,1)
                         if pv < pk:
-                            uj = self.dao.trainingmatrix.matrix_User[self.dao.getUserId(u1)].keys()
+                            uj = self.dao.trainingmatrix.matrix_User[pu].keys()
                             temp = 0
-                            bestItem = None
+                            bitem = None
                             for j in uj:
                                 if self.itemSim[i][self.dao.getItemStr(j)] > temp:
                                     temp = self.itemSim[i][self.dao.getItemStr(j)]
-                                    bestItem = j
-                            rating += self.dao.rating(self.dao.getUserId(u1),self.dao.getItemStr(bestItem))
+                                    bitem = j
+                            rating += self.dao.rating(u1,self.dao.getItemStr(bitem))
                             twcount += 1
                         else:
                             u = u1
@@ -91,7 +91,8 @@ class TSWalker(Recommender):
                         self.userSim.set(u1, u2, 0)
             tcount = 0
             for i in range (len(self.userSim[u1])):
-                if self.userSim[u1][i][1]==1:
+                us = list(self.userSim[u1])
+                if us[i][1]==1:
                     tcount += 1
             print 'user ' + u1 + ' finished.'
         print 'The user correlation has been figured out.'
@@ -123,11 +124,15 @@ class TSWalker(Recommender):
                         ui = self.dao.rating(r,i)
                         um = self.dao.userMeans[r]
                         d2 += (ui-um)**2
-                    denom = sqrt(d1*d2)
-                    corr = float(sum) / denom
-                    l = float(len(cuser)) / 2
-                    sim = corr / (1+exp(-l))
-                    self.itemSim.set(i,j,sim)
+                    try:
+                        denom = sqrt(d1*d2)
+                        corr = float(sum) / denom
+                    except ZeroDivisionError:
+                        corr = 0
+                    finally:
+                        l = float(len(cuser)) / 2
+                        sim = corr / (1 + exp(-l))
+                        self.itemSim.set(i,j,sim)
             print 'item ' + i + ' finished.'
         print 'The item correlation has been figured out.'
     def proOfK(self,u,i,k):
@@ -139,9 +144,8 @@ class TSWalker(Recommender):
                 urj.append(x)
         for j in urj:
             res.append(self.itemSim[i][j][1])
-        for r in res:
-            r = r / (1+exp(-nk))
-            res.append(r)
-        return max(res)
+        map(lambda x:x / (1+exp(-nk)), res)
+        nres = list(res)
+        return max(nres)
                             
           
