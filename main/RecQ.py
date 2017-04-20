@@ -6,7 +6,6 @@ from evaluation.dataSplit import *
 from multiprocessing import Process,Manager
 from tool.file import FileIO
 from time import strftime,localtime,time
-import mkl
 class RecQ(object):
     def __init__(self,config):
         self.trainingData = []  # training data
@@ -56,17 +55,12 @@ class RecQ(object):
 
     def execute(self):
         #import the algorithm module
-        try:
-            importStr = 'from algorithm.rating.' + self.config['recommender'] + ' import ' + self.config['recommender']
-            exec (importStr)
-        except ImportError:
-            importStr = 'from algorithm.ranking.' + self.config['recommender'] + ' import ' + self.config['recommender']
-            exec (importStr)
+        importStr = 'from algorithm.rating.' + self.config['recommender'] + ' import ' + self.config['recommender']
+        exec (importStr)
         if self.evaluation.contains('-cv'):
             k = int(self.evaluation['-cv'])
             if k <= 1 or k > 10:
                 k = 3
-            mkl.set_num_threads(max(1,mkl.get_max_threads()/k))
             #create the manager used to communication in multiprocess
             manager = Manager()
             m = manager.dict()
@@ -77,7 +71,7 @@ class RecQ(object):
             if self.evaluation.contains('-b'):
                 binarized = True
 
-            for train,test in DataSplit.crossValidation(self.trainingData,k,binarized=binarized):
+            for train,test in DataSplit.crossValidation(self.trainingData,k,binarized):
                 fold = '['+str(i)+']'
                 if self.config.contains('social'):
                     recommender = self.config['recommender'] + "(self.config,train,test,self.relation,fold)"
@@ -90,12 +84,9 @@ class RecQ(object):
             #start the processes
             for p in tasks:
                 p.start()
-                if not self.evaluation.contains('-p'):
-                    p.join()
             #wait until all processes are completed
-            if self.evaluation.contains('-p'):
-                for p in tasks:
-                    p.join()
+            for p in tasks:
+                p.join()
             #compute the mean error of k-fold cross validation
             self.measure = [dict(m)[i] for i in range(1,k+1)]
             res = []
@@ -110,7 +101,6 @@ class RecQ(object):
             outDir = LineConfig(self.config['output.setup'])['-dir']
             fileName = self.config['recommender'] +'@'+currentTime+'-'+str(k)+'-fold-cv' + '.txt'
             FileIO.writeFile(outDir,fileName,res)
-            print 'The result of %d-fold cross validation:\n%s' %(k,''.join(res))
 
 
         else:

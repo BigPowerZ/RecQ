@@ -13,8 +13,6 @@ from tool.config import Config,LineConfig
 from os.path import abspath
 from time import strftime,localtime,time
 from evaluation.measure import Measure
-from evaluation.dataSplit import *
-from multiprocessing import Process,Manager
 class Recommender(object):
     def __init__(self,conf,trainingSet=None,testSet=None,fold='[1]'):
         self.config = conf
@@ -27,14 +25,12 @@ class Recommender(object):
         self.dao = RatingDAO(self.config, trainingSet, testSet)
         self.foldInfo = fold
         self.measure = []
-        self.evaluation = None
 
     def readConfiguration(self):
         self.algorName = self.config['recommender']
         self.output = LineConfig(self.config['output.setup'])
         self.isOutput = self.output.isMainOn()
         self.ranking = LineConfig(self.config['item.ranking'])
-        self.evaluation = LineConfig(self.config['evaluation.setup'])
 
     def printAlgorConfig(self):
         "show algorithm's configuration"
@@ -50,7 +46,7 @@ class Recommender(object):
     def initModel(self):
         pass
 
-    def buildModel(self,trainingSet,testSet):
+    def buildModel(self):
         'build the model (for model-based algorithms )'
         pass
 
@@ -97,13 +93,12 @@ class Recommender(object):
             outDir = self.output['-dir']
             fileName = self.config['recommender']+'@'+currentTime+'-rating-predictions'+self.foldInfo+'.txt'
             FileIO.writeFile(outDir,fileName,res)
-            print 'The result has been output to ',abspath(outDir),'.'
+            print 'The Result has been output to ',abspath(outDir),'.'
         #output evaluation result
         outDir = self.output['-dir']
         fileName = self.config['recommender'] + '@'+currentTime +'-measure'+ self.foldInfo + '.txt'
         self.measure = Measure.ratingMeasure(self.dao.testData)
         FileIO.writeFile(outDir, fileName, self.measure)
-        print 'The result of %s %s:\n%s' % (self.algorName, self.foldInfo, ''.join(self.measure))
 
     def evalRanking(self):
         res = []  # used to contain the text of the result
@@ -152,7 +147,7 @@ class Recommender(object):
 
             ratedList, ratingList = self.dao.userRated(user)
             for item in ratedList:
-                del itemSet[item]
+                del itemSet[self.dao.id2item[item]]
             itemSet = sorted(itemSet.iteritems(), key=lambda d: d[1], reverse=True)
             if self.ranking.contains('-topN'):
                 recList[user] = itemSet[0:N]
@@ -179,7 +174,7 @@ class Recommender(object):
             elif self.ranking.contains('-threshold'):
                 fileName = self.config['recommender'] + '@' + currentTime + '-threshold-' + str(threshold)  + self.foldInfo + '.txt'
             FileIO.writeFile(outDir, fileName, res)
-            print 'The result has been output to ', abspath(outDir), '.'
+            print 'The Result has been output to ', abspath(outDir), '.'
         #output evaluation result
         outDir = self.output['-dir']
         fileName = self.config['recommender'] + '@' + currentTime + '-measure' + self.foldInfo + '.txt'
@@ -195,32 +190,11 @@ class Recommender(object):
                 origin[user] = temp
             self.measure = Measure.rankingMeasure_threshold(origin, recList, userN)
         FileIO.writeFile(outDir, fileName, self.measure)
-        print 'The result of %s %s:\n%s' % (self.algorName, self.foldInfo, ''.join(self.measure))
 
     def execute(self):
         self.readConfiguration()
         if self.foldInfo == '[1]':
             self.printAlgorConfig()
-        if self.evaluation.contains('-p'):
-            n = int(self.evaluation['-p'])
-            if n == -1:
-                pass
-            elif n >=2:
-                tasks = []
-                self.trainingData,self.testData =DataSplit.crossValidation(self.trainingData, n)
-                for trainSubset,testSubset in self.trainingData,self.testData:
-                    p= Process(target=self.buildModel, args=(trainSubset,testSubset))
-                    tasks.append(p)
-                # start the processes
-                for p in tasks:
-                    p.start()
-                # wait until all processes are completed
-                for p in tasks:
-                    p.join()
-            else:
-                print 'The number of parallel process is illegal!'
-
-
         #load model from disk or build model
         if self.isLoadModel:
             print 'Loading model %s...' %(self.foldInfo)
@@ -274,6 +248,5 @@ class Recommender(object):
         # outDir = self.output['-dir']
         # fileName = self.config['recommender'] + '@' + currentTime + '-measure' + self.foldInfo + '.txt'
         self.measure = Measure.ratingMeasure(res)
-
         return self.measure
         #FileIO.writeFile(outDir, fileName, self.measure)

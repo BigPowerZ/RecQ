@@ -5,7 +5,7 @@ from tool.qmath import normalize
 from evaluation.dataSplit import DataSplit
 import os.path
 from re import split
-from collections import defaultdict
+
 class RatingDAO(object):
     'data access control'
     def __init__(self,config,trainingSet = list(), testSet = list()):
@@ -19,12 +19,14 @@ class RatingDAO(object):
         self.all_User = {}
         self.userMeans = {} #used to store the mean values of users's ratings
         self.itemMeans = {} #used to store the mean values of items's ratings
+        self.trainingData = [] #training data
+        self.testData = [] #testData
         self.globalMean = 0
         self.timestamp = {}
-        self.trainSet_u = defaultdict(dict)
-        self.trainSet_i = defaultdict(dict)
-        self.testSet_u = defaultdict(dict) # used to store the test set by hierarchy user:[item,rating]
-        self.testSet_i = defaultdict(dict) # used to store the test set by hierarchy item:[user,rating]
+        self.trainingMatrix = None
+        self.validationMatrix = None
+        self.testSet_u = {} # used to store the test set by hierarchy user:[item,rating]
+        self.testSet_i = {} # used to store the test set by hierarchy item:[user,rating]
         self.rScale = []
 
         self.trainingData = trainingSet
@@ -61,22 +63,26 @@ class RatingDAO(object):
                 self.item[itemName] = len(self.item)
                 self.id2item[self.item[itemName]] = itemName
                 # userList.append
-            self.trainSet_u[userName][itemName] = rating
-            self.trainSet_i[itemName][userName] = rating
+            triple.append([self.user[userName], self.item[itemName], rating])
+        self.trainingMatrix = new_sparseMatrix.SparseMatrix(triple)
 
         self.all_User.update(self.user)
         self.all_Item.update(self.item)
         for entry in self.testData:
-            userName, itemName, rating = entry
+            userId, itemId, rating = entry
             # order the user
-            if not self.user.has_key(userName):
-                self.all_User[userName] = len(self.all_User)
+            if not self.user.has_key(userId):
+                self.all_User[userId] = len(self.all_User)
             # order the item
-            if not self.item.has_key(itemName):
-                self.all_Item[itemName] = len(self.all_Item)
+            if not self.item.has_key(itemId):
+                self.all_Item[itemId] = len(self.all_Item)
 
-            self.testSet_u[userName][itemName] = rating
-            self.testSet_i[itemName][userName] = rating
+            if not self.testSet_u.has_key(userId):
+                self.testSet_u[userId] = {}
+            self.testSet_u[userId][itemId] = rating
+            if not self.testSet_i.has_key(itemId):
+                self.testSet_i[itemId] = {}
+            self.testSet_i[itemId][userId] = rating
 
 
 
@@ -90,112 +96,94 @@ class RatingDAO(object):
 
     def __computeUserMean(self):
         for u in self.user:
-            # n = self.row(u) > 0
-            # mean = 0
-            #
-            # if not self.containsUser(u):  # no data about current user in training set
-            #     pass
-            # else:
-            #     sum = float(self.row(u)[0].sum())
-            #     try:
-            #         mean =  sum/ n[0].sum()
-            #     except ZeroDivisionError:
-            #         mean = 0
-            self.userMeans[u] = sum(self.trainSet_u[u].values())/float(len(self.trainSet_u[u]))
+            n = self.row(u) > 0
+            mean = 0
+
+            if not self.containsUser(u):  # no data about current user in training set
+                pass
+            else:
+                sum = float(self.row(u)[0].sum())
+                try:
+                    mean =  sum/ n[0].sum()
+                except ZeroDivisionError:
+                    mean = 0
+            self.userMeans[u] = mean
 
     def __computeItemMean(self):
         for c in self.item:
-            self.itemMeans[c] = sum(self.trainSet_i[c].values()) / float(len(self.trainSet_i[c]))
+            n = self.col(c) > 0
+            mean = 0
+            if not self.containsItem(c):  # no data about current user in training set
+                pass
+            else:
+                sum = float(self.col(c)[0].sum())
+                try:
+                    mean = sum / n[0].sum()
+                except ZeroDivisionError:
+                    mean = 0
+            self.itemMeans[c] = mean
 
     def getUserId(self,u):
         if self.user.has_key(u):
             return self.user[u]
         else:
             return -1
-        
-    def getUserStr(self,u):
-        key_list = []
-        value_list = []
-        for k,v in self.user.items():
-            key_list.append(k)
-            value_list.append(v)
-        if u in value_list:
-            u_index = value_list.index(u)
-            return key_list[u_index]
-        else:
-            return -1
-        
+
     def getItemId(self,i):
         if self.item.has_key(i):
             return self.item[i]
         else:
             return -1
-    
-    def getItemStr(self,i):
-        key_list = []
-        value_list = []
-        for k,v in self.item.items():
-            key_list.append(k)
-            value_list.append(v)
-        if i in value_list:
-            i_index = value_list.index(i)
-            return key_list[i_index]
-        else:
-            return -1
-        
+
     def trainingSize(self):
-        return (len(self.user),len(self.item),len(self.trainingData))
+        return (self.trainingMatrix.size[0],self.trainingMatrix.size[1],len(self.trainingData))
 
     def testSize(self):
         return (len(self.testSet_u),len(self.testSet_i),len(self.testData))
 
     def contains(self,u,i):
         'whether user u rated item i'
-        if self.user.has_key(u) and self.trainSet_u[u].has_key(i):
-            return True
-        else:
-            return False
-
+        return self.trainingMatrix.contains(self.getUserId(u),self.getItemId(i))
 
     def containsUser(self,u):
         'whether user is in training set'
-        if self.user.has_key(u):
-            return True
-        else:
-            return False
+        return self.trainingMatrix.matrix_User.has_key(self.getUserId(u))
 
     def containsItem(self,i):
         'whether item is in training set'
-        if self.item.has_key(i):
-            return True
-        else:
-            return False
+        return self.trainingMatrix.matrix_Item.has_key(self.getItemId(i))
 
     def userRated(self,u):
-        return self.trainSet_u[u].keys(),self.trainSet_u[u].values()
+        if self.trainingMatrix.matrix_User.has_key(self.getUserId(u)):
+            itemIndex =  self.trainingMatrix.matrix_User[self.user[u]].keys()
+            rating = self.trainingMatrix.matrix_User[self.user[u]].values()
+            return (itemIndex,rating)
+        return ([],[])
 
     def itemRated(self,i):
-        return self.trainSet_i.keys(),self.trainSet_i.values()
+        if self.trainingMatrix.matrix_Item.has_key(self.getItemId(i)):
+            userIndex = self.trainingMatrix.matrix_Item[self.item[i]].keys()
+            rating = self.trainingMatrix.matrix_Item[self.item[i]].values()
+            return (userIndex,rating)
+        return ([],[])
 
-    # def row(self,u):
-    #     return self.trainingMatrix.row(self.getUserId(u))
-    #
-    # def col(self,c):
-    #     return self.trainingMatrix.col(self.getItemId(c))
+    def row(self,u):
+        return self.trainingMatrix.row(self.getUserId(u))
+
+    def col(self,c):
+        return self.trainingMatrix.col(self.getItemId(c))
 
     def sRow(self,u):
-        return self.trainSet_u[u]
+        return self.trainingMatrix.sRow(self.getUserId(u))
 
     def sCol(self,c):
-        return self.trainSet_i[c]
+        return self.trainingMatrix.sCol(self.getItemId(c))
 
     def rating(self,u,c):
-        if self.contains(u,c):
-            return self.trainSet_u[u][c]
-        return -1
+        return self.trainingMatrix.elem(self.getUserId(u),self.getItemId(c))
 
     def ratingScale(self):
         return (self.rScale[0],self.rScale[1])
 
     def elemCount(self):
-        return len(self.trainingData)
+        return self.trainingMatrix.elemCount()

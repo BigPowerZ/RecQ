@@ -31,14 +31,12 @@ class RSTE(SocialRecommender):
                 self.loss += error ** 2
                 p = self.P[u]
                 q = self.Q[i]
-
+                self.loss += self.regU * p.dot(p) + self.regI * q.dot(q)
                 # update latent vectors
                 self.P[u] += self.lRate * (self.alpha*error * q - self.regU * p)
                 self.Q[i] += self.lRate * (self.alpha*error * p - self.regI * q)
-            self.loss+= self.regU*(self.P*self.P).sum() + self.regI*(self.Q*self.Q).sum()
             iteration += 1
             self.isConverged(iteration)
-
 
     def predict(self,u,i):
         if self.dao.containsUser(u) and self.dao.containsItem(i):   
@@ -46,23 +44,18 @@ class RSTE(SocialRecommender):
             fPred = 0
             denom = 0
             relations = self.sao.getFollowees(u)
-            weights = []
-            indexes = []
             for followee in relations:
+                weight = relations[followee]
+
                 if  self.dao.containsUser(followee):  # followee is in rating set
-                    indexes.append(self.dao.user[followee])
-                    weights.append(relations[followee])
-            weights = np.array(weights)
-            indexes = np.array(indexes)
-            denom = weights.sum()
+                    uf = self.dao.user[followee]
+                    fPred += weight * (self.P[uf].dot(self.Q[i]))
+                    denom += weight
             u = self.dao.user[u]
             if denom <> 0:
-                fPred += weights.dot((self.P[indexes].dot(self.Q[i])))
-
                 return self.alpha * self.P[u].dot(self.Q[i])+(1-self.alpha)*fPred / denom
             else:
                 return self.P[u].dot(self.Q[i])
-
         else:
             return self.dao.globalMean
 
@@ -83,4 +76,4 @@ class RSTE(SocialRecommender):
             else:
                 return self.Q.dot(self.P[u])
         else:
-            return [self.dao.globalMean] * len(self.dao.item)
+            return np.array([self.dao.globalMean] * len(self.dao.item))

@@ -1,9 +1,8 @@
 
 ![RecQ](http://i2.muimg.com/1949/44c429091e3bd3d2.png)
 
-**Founder**: [@Coder-Yu ](https://github.com/Coder-Yu)<br>
-**Main Contributors**: [@DouTong](https://github.com/DouTong) [@Niki666](https://github.com/Niki666) [@HuXiLiFeng](https://github.com/HuXiLiFeng) [@BigPowerZ](https://github.com/BigPowerZ) <br>
-Released by School of Software Engineering, Chongqing University<br>
+Released by School of Software Engineering, Chongqing University
+
 <h2>Introduction</h2>
 
 **RecQ** is a Python library for recommender systems (Python 2.7.x). It implements a suit of state-of-the-art recommendations. To run RecQ easily (no need to setup packages used in RecQ one by one), the leading open data science platform  [**Anaconda**](https://www.continuum.io/downloads) is strongly recommended. It integrates Python interpreter, common scientific computing libraries (such as Numpy, Pandas, and Matplotlib), and package manager, all of them make it a perfect tool for data science researcher.
@@ -12,7 +11,7 @@ Released by School of Software Engineering, Chongqing University<br>
 
 ![RecQ Architecture](http://ww3.sinaimg.cn/large/88b98592gw1f9fh8jpencj21d40ouwlf.jpg)
 
-To design it exquisitely, we refer to the library [**LibRec**](https://github.com/guoguibing/librec), which is implemented with Java.
+To design it exquisitely, we brought some thoughts from another recommender system library [**LibRec**](https://github.com/guoguibing/librec), which is implemented with Java.
 
 <h2>Features</h2>
 <ul>
@@ -65,32 +64,32 @@ To design it exquisitely, we refer to the library [**LibRec**](https://github.co
   <tr>
     <td scope="row">recommender</td>
     <td>UserKNN/ItemKNN/SlopeOne/etc.</td>
-    <td>Set the recommender to use. </br>
+    <td>Set the recommender to use. <br>
     </td>
   </tr>
   <tr>
     <td scope="row">evaluation.setup</td>
     <td>-testSet ../dataset/testset.txt</td>
-    <td>Main option: -testSet, -ap, -cv </br>
-      -testSet path/to/test/file   (need to specify the test set manually)</br>
-      -ap ratio   (ap means that the ratings are automatically partitioned into training set and test set, the number is the ratio of test set. e.g. -ap 0.2)</br>
-      -cv k   (-cv means cross validation, k is the number of the fold. e.g. -cv 5)</br>
-      Secondary option:-b, -p<br>
-      -b val （binarizing the rating values. Ratings equal or greater than val will be changed into 1, and ratings lower than val will be changed into 0. e.g. -b 3.0）</br>
-      -p (if this option is added, the cross validation wll be excuted parallelly, otherwise excuted one by one)
+    <td>Main option: -testSet, -ap, -cv <br>
+      -testSet path/to/test/file   (need to specify the test set manually)<br>
+      -ap ratio   (ap means that the ratings are automatically partitioned into training set and test set, the number is the ratio of test set. e.g. -ap 0.2)<br>
+      -cv k   (-cv means cross validation, k is the number of the fold. e.g. -cv 5)<br>
+      Secondary option:-b <br>
+      -b val （binarizing the rating values. Ratings equal or greater than val will be changed into 1, and ratings lower than val will be changed into 0. e.g. -b 3.0）
      </td>
   </tr>
   <tr>
     <td scope="row">item.ranking</td>
     <td>off -topN -1 </td>
     <td>Main option: whether to do item ranking<br>
-      -topN N: the length of the recommendation list for item recommendation, default -1 for full list; </br>
+      -topN N: the length of the recommendation list for item recommendation, default -1 for full list; <br>
+      -threshold val: if the predicted score is greater than val, the item will appear in the recommendation list.<br>
     </td>
   </tr>
   <tr>
     <td scope="row">output.setup</td>
     <td>on -dir ./Results/</td>
-    <td>Main option: whether to output recommendation results</br>
+    <td>Main option: whether to output recommendation results<br>
       -dir path: the directory path of output results.
        </td>
   </tr>  
@@ -162,10 +161,9 @@ To design it exquisitely, we refer to the library [**LibRec**](https://github.co
 
 <h2>Algorithms Implemented</h2>
 <div>
-
  <table class="table table-hover table-bordered">
   <tr>
-		<th>Rating prediction</th>
+		<th>Algorithm</th>
 		<th>Paper</th>
   </tr>
   <tr>
@@ -187,7 +185,12 @@ To design it exquisitely, we refer to the library [**LibRec**](https://github.co
     <td scope="row">SocialMF</td>
     <td>Jamali and Ester, A Matrix Factorization Technique with Trust Propagation for Recommendation in Social Networks, RecSys 2010.
      </td>
-  </tr>
+  </tr> 
+  <tr>
+    <td scope="row">TrustMF</td>
+    <td>Yang et al., Social Collaborative Filtering by Trust, IJCAI 2013.
+     </td>
+  </tr> 
   <tr>
     <td scope="row">RSTE</td>
     <td>Ma et al., Learning to Recommend with Social Trust Ensemble, SIGIR 2009.
@@ -195,11 +198,6 @@ To design it exquisitely, we refer to the library [**LibRec**](https://github.co
   </tr> 
   <tr>
     <td scope="row">SVD</td>
-    <td>Y. Koren, Collaborative Filtering with Temporal Dynamics, KDD 2009.
-     </td>
-  </tr>
-   <tr>
-    <td scope="row">SVD++</td>
     <td>Y. Koren, Collaborative Filtering with Temporal Dynamics, KDD 2009.
      </td>
   </tr>
@@ -219,23 +217,4 @@ To design it exquisitely, we refer to the library [**LibRec**](https://github.co
      </td>
   </tr>
   </table>
-
-  </br>
-  <table class="table table-hover table-bordered">
-  <tr>
-		<th>Item Ranking</th>
-		<th>Paper</th>
-  </tr>
-    <tr>
-	<td scope="row">BPR</td>
-    <td>Rendle et al., BPR: Bayesian Personalized Ranking from Implicit Feedback, UAI 2009.<br>
-    </td>
-  </tr>
-    <tr>
-	<td scope="row">SBPR</td>
-    <td>Zhao et al., Leveraing Social Connections to Improve Personalized Ranking for Collaborative Filtering, CIKM 2014<br>
-    </td>
-  </tr>
-  </table>
 </div>
-

@@ -15,21 +15,16 @@ class SocialMF(SocialRecommender ):
             self.loss = 0
             for entry in self.dao.trainingData:
                 user, item, rating = entry
+                followees = self.sao.getFollowees(user)
                 u = self.dao.user[user]
                 i = self.dao.item[item]
                 error = rating - self.P[u].dot(self.Q[i])
                 self.loss += error**2
                 p = self.P[u].copy()
                 q = self.Q[i].copy()
-                self.P[u] += self.lRate * error * q
-                self.Q[i] += self.lRate * (error * p - self.regI * q)
-
-            for user in self.dao.user:
                 fPred = 0
                 denom = 0
-                u = self.dao.user[user]
                 relationLoss = np.zeros(self.k)
-                followees = self.sao.getFollowees(user)
                 for followee in followees:
                     weight= followees[followee]
                     if self.dao.containsUser(followee):
@@ -39,13 +34,13 @@ class SocialMF(SocialRecommender ):
                 if denom <> 0:
                     relationLoss = p - fPred / denom
 
-                self.loss +=  self.regS *  relationLoss.dot(relationLoss)
+                self.loss += self.regU * p.dot(p) + self.regI * q.dot(q) + self.regS *  relationLoss.dot(relationLoss)
 
                 # update latent vectors
-                self.P[u] -= self.lRate * self.regS * relationLoss
+                self.P[u] += self.lRate * (error * q - self.regU * p - self.regS * relationLoss)
+                self.Q[i] += self.lRate * (error * p - self.regI * q)
 
 
-            self.loss+=self.regU*(self.P*self.P).sum() + self.regI*(self.Q*self.Q).sum()
             iteration += 1
             if self.isConverged(iteration):
                 break
