@@ -3,7 +3,7 @@ sys.path.append("..")
 from RecQ import RecQ
 from tool.config import Config
 from visual.display import Display
-from algorithm.rating.TrustMF import TrustMF
+
 
 
 if __name__ == '__main__':
@@ -14,7 +14,8 @@ if __name__ == '__main__':
     print '0. Analyze the input data.(Configure the visual.conf in config/visual first.)'
     print '1. UserKNN        2. ItemKNN        3. BasicMF        4. SlopeOne        5. RSTE'
     print '6. UserMean       7. ItemMean       8. SVD            9. PMF             10. TrustMF'
-    print '11. SocialMF      12. SoRec         13.SoReg          14.SVD++           15.EE              16.TSWalker'
+    print '11. SocialMF      12. SoRec         13.SoReg          14.SVD++           15.EE'
+    print '16. CoFactor      17. TSWalker'
     print '-'*80
     algor = -1
     conf = -1
@@ -76,13 +77,15 @@ if __name__ == '__main__':
         conf = Config('../config/EE.conf')
 
     elif order == 16:
-        conf = Config('../config/TSWalker.conf')
+        conf = Config('../config/CoFactor.conf')
 
+    elif order == 17:
+        conf = Config('../config/TSWalker.conf')
 
     else:
         print 'Error num!'
         exit(-1)
-    RecQ = RecQ(conf)
-    RecQ.execute()
+    recSys = RecQ(conf)
+    recSys.execute()
     e = time.clock()
     print "Run time: %f s" % (e - s)

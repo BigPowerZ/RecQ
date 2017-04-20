@@ -11,8 +11,12 @@ class RatingDAO(object):
     def __init__(self,config,trainingSet = list(), testSet = list()):
         self.config = config
         self.ratingConfig = LineConfig(config['ratings.setup'])
-        self.user = {} #used to store the order of users
-        self.item = {} #used to store the order of items
+        self.user = {} #used to store the order of users in the training set
+        self.item = {} #used to store the order of items in the training set
+        self.id2user = {}
+        self.id2item = {}
+        self.all_Item = {}
+        self.all_User = {}
         self.userMeans = {} #used to store the mean values of users's ratings
         self.itemMeans = {} #used to store the mean values of items's ratings
         self.trainingData = [] #training data
@@ -40,34 +44,38 @@ class RatingDAO(object):
         scale = set()
         # find the maximum rating and minimum value
         for i, entry in enumerate(self.trainingData):
-            userId, itemId, rating = entry
+            userName, itemName, rating = entry
             scale.add(float(rating))
         self.rScale = list(scale)
         self.rScale.sort()
 
         for i,entry in enumerate(self.trainingData):
-            userId,itemId,rating = entry
+            userName,itemName,rating = entry
             # makes the rating within the range [0, 1].
             rating = normalize(float(rating), self.rScale[-1], self.rScale[0])
             self.trainingData[i][2] = rating
             # order the user
-            if not self.user.has_key(userId):
-                self.user[userId] = len(self.user)
+            if not self.user.has_key(userName):
+                self.user[userName] = len(self.user)
+                self.id2user[self.user[userName]] = userName
             # order the item
-            if not self.item.has_key(itemId):
-                self.item[itemId] = len(self.item)
+            if not self.item.has_key(itemName):
+                self.item[itemName] = len(self.item)
+                self.id2item[self.item[itemName]] = itemName
                 # userList.append
-            triple.append([self.user[userId], self.item[itemId], rating])
+            triple.append([self.user[userName], self.item[itemName], rating])
         self.trainingMatrix = new_sparseMatrix.SparseMatrix(triple)
 
+        self.all_User.update(self.user)
+        self.all_Item.update(self.item)
         for entry in self.testData:
             userId, itemId, rating = entry
             # order the user
             if not self.user.has_key(userId):
-                self.user[userId] = len(self.user)
+                self.all_User[userId] = len(self.all_User)
             # order the item
             if not self.item.has_key(itemId):
-                self.item[itemId] = len(self.item)
+                self.all_Item[itemId] = len(self.all_Item)
 
             if not self.testSet_u.has_key(userId):
                 self.testSet_u[userId] = {}
@@ -120,37 +128,13 @@ class RatingDAO(object):
             return self.user[u]
         else:
             return -1
-        
-    def getUserStr(self,u):
-        key_list = []
-        value_list = []
-        for k,v in self.user.items():
-            key_list.append(k)
-            value_list.append(v)
-        if u in value_list:
-            u_index = value_list.index(u)
-            return key_list[u_index]
-        else:
-            return -1
-        
+
     def getItemId(self,i):
         if self.item.has_key(i):
             return self.item[i]
         else:
             return -1
-    
-    def getItemStr(self,i):
-        key_list = []
-        value_list = []
-        for k,v in self.item.items():
-            key_list.append(k)
-            value_list.append(v)
-        if i in value_list:
-            i_index = value_list.index(i)
-            return key_list[i_index]
-        else:
-            return -1
-        
+
     def trainingSize(self):
         return (self.trainingMatrix.size[0],self.trainingMatrix.size[1],len(self.trainingData))
 
@@ -188,6 +172,12 @@ class RatingDAO(object):
 
     def col(self,c):
         return self.trainingMatrix.col(self.getItemId(c))
+
+    def sRow(self,u):
+        return self.trainingMatrix.sRow(self.getUserId(u))
+
+    def sCol(self,c):
+        return self.trainingMatrix.sCol(self.getItemId(c))
 
     def rating(self,u,c):
         return self.trainingMatrix.elem(self.getUserId(u),self.getItemId(c))

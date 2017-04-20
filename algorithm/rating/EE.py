@@ -14,8 +14,8 @@ class EE(IterativeRecommender):
 
     def initModel(self):
         super(EE, self).initModel()
-        self.Bu = np.random.rand(self.dao.trainingSize()[0])/10  # biased value of user
-        self.Bi = np.random.rand(self.dao.trainingSize()[1])/10  # biased value of item
+        self.Bu = np.random.rand(self.dao.trainingSize()[0])/10  # bias value of user
+        self.Bi = np.random.rand(self.dao.trainingSize()[1])/10  # bias value of item
         self.X = np.random.rand(self.dao.trainingSize()[0], self.Dim)/10
         self.Y = np.random.rand(self.dao.trainingSize()[1], self.Dim)/10
 
@@ -24,10 +24,10 @@ class EE(IterativeRecommender):
         while iteration < self.maxIter:
             self.loss = 0
             for entry in self.dao.trainingData:
-                u, i, r = entry
-                error = r - self.predict(u,i)
-                u = self.dao.getUserId(u)
-                i = self.dao.getItemId(i)
+                user, item, rating = entry
+                error = rating - self.predict(user,item)
+                u = self.dao.user[user]
+                i = self.dao.item[item]
                 self.loss += error ** 2
                 self.loss += self.regU * (self.X[u] - self.Y[i]).dot(self.X[u] - self.Y[i])
                 bu = self.Bu[u]
@@ -43,8 +43,16 @@ class EE(IterativeRecommender):
 
     def predict(self, u, i):
         if self.dao.containsUser(u) and self.dao.containsItem(i):
-            u = self.dao.getUserId(u)
-            i = self.dao.getItemId(i)
-            return self.dao.globalMean + self.Bi[i] + self.Bu[u] + (self.X[u] - self.Y[i]).dot(self.X[u] - self.Y[i])
+            u = self.dao.user[u]
+            i = self.dao.item[i]
+            return self.dao.globalMean + self.Bi[i] + self.Bu[u] - (self.X[u] - self.Y[i]).dot(self.X[u] - self.Y[i])
         else:
             return self.dao.globalMean
+
+    def predictForRanking(self,u):
+        'invoked to rank all the items for the user'
+        if self.dao.containsUser(u):
+            u = self.dao.user[u]
+            return (self.Y-self.X[u]).dot(self.X[u])+self.Bi+self.Bu[u]+self.dao.globalMean
+        else:
+            return np.array([self.dao.globalMean]*len(self.dao.item))

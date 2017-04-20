@@ -30,16 +30,16 @@ class SVDPlusPlus(IterativeRecommender):
         while iteration < self.maxIter:
             self.loss = 0
             for entry in self.dao.trainingData:
-                u, i, r = entry
-                itemIndexs, rating = self.dao.userRated(u)
+                user, item, rating = entry
+                itemIndexs, ratings = self.dao.userRated(user)
                 w = len(itemIndexs)
                 #w = math.sqrt(len(itemIndexs))
-                error = r - self.predict(u, i)
-                u = self.dao.getUserId(u)
-                i = self.dao.getItemId(i)
+                error = rating - self.predict(user, item)
+                u = self.dao.user[user]
+                i = self.dao.item[item]
                 self.loss += error ** 2
-                p = self.P[u].copy()
-                q = self.Q[i].copy()
+                p = self.P[u]
+                q = self.Q[i]
                 self.loss += self.regU * p.dot(p) + self.regI * q.dot(q)
                 bu = self.Bu[u]
                 bi = self.Bi[i]
@@ -67,8 +67,8 @@ class SVDPlusPlus(IterativeRecommender):
             itemIndexs,rating = self.dao.userRated(u)
             w = len(itemIndexs)
             # w = math.sqrt(len(itemIndexs))
-            u = self.dao.getUserId(u)
-            i = self.dao.getItemId(i)
+            u = self.dao.user[u]
+            i = self.dao.item[i]
             sum = 0
             if w> 0:
                 for j in itemIndexs:
@@ -78,4 +78,22 @@ class SVDPlusPlus(IterativeRecommender):
 
         else:
             pred = self.dao.globalMean
+        return pred
+
+    def predictForRanking(self,u):
+        pred = 0
+        if self.dao.containsUser(u):
+            itemIndexs, rating = self.dao.userRated(u)
+            w = len(itemIndexs)
+            # w = math.sqrt(len(itemIndexs))
+            u = self.dao.user[u]
+            sum = 0
+            if w > 0:
+                for j in itemIndexs:
+                    sum += self.Y[j]
+                pred += self.Q.dot(sum / w)
+            pred += self.Q(self.P[u]) + self.dao.globalMean + self.Bi + self.Bu[u]
+
+        else:
+            pred = np.array([self.dao.globalMean] * len(self.dao.item))
         return pred

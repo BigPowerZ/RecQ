@@ -13,9 +13,8 @@ class TSWalker(Recommender):
         
 
     def readConfiguration(self):
+        super(TSWalker, self).readConfiguration()
         self.sim = self.config['similarity']
-        self.shrinkage = int(self.config['num.shrinkage'])
-        self.neighbors = int(self.config['num.neighbors'])
         TW = LineConfig(self.config['TSWalker'])
         self.k = int(TW['-k'])
         self.v = float(TW['-v'])
@@ -26,8 +25,6 @@ class TSWalker(Recommender):
         "show algorithm's configuration"
         super(TSWalker, self).printAlgorConfig()
         print 'Specified Arguments of', self.config['recommender'] + ':'
-        print 'num.neighbors:', self.config['num.neighbors']
-        print 'num.shrinkage:', self.config['num.shrinkage']
         print 'similarity:', self.config['similarity']
         print 'step: %d' %self.k
         print 'Random Walk times: %d' %self.tw
@@ -39,14 +36,15 @@ class TSWalker(Recommender):
         self.computeUCorr()
 
     def predict(self, u, i):
+        u0 = u
         twcount = 0
         pre = []
-        tk = 0
         rating = 0
         while twcount < self.tw:
+            tk = 0
             while tk < self.k:
                 u1 = choice(list(self.dao.user))
-                if u1 not in pre:
+                if (u0<>u1) and (u1 not in pre):
                     pre.append(u1)
                 else:
                     continue
@@ -56,25 +54,29 @@ class TSWalker(Recommender):
                 else:
                     if self.dao.rating(u1,i) != 0:
                         rating += self.dao.rating(u1,i)
+                        tk += 1
                         twcount += 1
+                        print 'Finished TSWalker for %d time in %d step-1'%(twcount ,tk)
                     else:
                         tk += 1
                         pk = self.proOfK(u1,i,tk)
-                        pv = random.randrange(0,1)
+                        pv = random()
                         if pv < pk:
-                            uj = self.dao.trainingmatrix.matrix_User[pu].keys()
+                            uj = self.dao.trainingMatrix.matrix_User[pu].keys()
                             temp = 0
-                            bitem = None
+                            bitem = 0
                             for j in uj:
-                                if self.itemSim[i][self.dao.getItemStr(j)] > temp:
-                                    temp = self.itemSim[i][self.dao.getItemStr(j)]
+                                if self.itemSim[i][self.dao.id2item[j]] > temp:
+                                    temp = self.itemSim[i][self.dao.id2item[j]]
                                     bitem = j
-                            rating += self.dao.rating(u1,self.dao.getItemStr(bitem))
+                            rating += self.dao.rating(u1,self.dao.id2item[bitem])
                             twcount += 1
+                            print 'Finished TSWalker for %d time in %d step-2' % (twcount, tk)
                         else:
-                            u = u1
-        rating = rating / float(self.tw)
-        return rating
+                            u0 = u1
+        print rating
+        pred = rating / float(self.tw)
+        return pred
 
     def computeUCorr(self):
         'compute correlation among users'
@@ -84,15 +86,15 @@ class TSWalker(Recommender):
                 if u1 <> u2:
                     if self.userSim.contains(u1, u2):
                         continue
-                    sim = qmath.similarity(self.dao.row(u1), self.dao.row(u2), self.sim)
+                    sim = qmath.similarity(self.dao.sRow(u1), self.dao.sRow(u2), self.sim)
                     if sim >= self.v:
                         self.userSim.set(u1, u2, 1)
                     else:
                         self.userSim.set(u1, u2, 0)
             tcount = 0
             for i in range (len(self.userSim[u1])):
-                us = list(self.userSim[u1])
-                if us[i][1]==1:
+                us = list(self.userSim[u1].iteritems())
+                if us[i][1] ==1:
                     tcount += 1
             print 'user ' + u1 + ' finished.'
         print 'The user correlation has been figured out.'
@@ -100,30 +102,26 @@ class TSWalker(Recommender):
     def computeICorr(self):
         'compute correlation among items'
         for i in self.dao.item:
+            d1 = 0
+            for r in self.dao.user:
+                ui = self.dao.rating(r, i)
+                um = self.dao.userMeans[r]
+                d1 += (ui - um) ** 2
             for j in self.dao.item:
                 if i <> j :
                     if self.itemSim.contains(i,j):
                         continue
-                    aui = self.dao.itemRated(i)
-                    auj = self.dao.itemRated(j)
-                    cuser = []
-                    for u in aui[0]:
-                        for v in auj[0]:
-                            if u == v:
-                                cuser.append(u)
+                    aui,rui = self.dao.itemRated(i)
+                    auj,ruj = self.dao.itemRated(j)
+                    cuser = set(aui).intersection(set(auj))
                     sum = 0
-                    d1 = 0
                     d2 = 0
                     for cu in cuser:
-                        rui = self.dao.rating(self.dao.getUserStr(cu),i)
-                        ruj = self.dao.rating(self.dao.getUserStr(cu),j)
-                        umean = self.dao.userMeans[self.dao.getUserStr(cu)]
+                        rui = self.dao.rating(self.dao.id2user[cu],i)
+                        ruj = self.dao.rating(self.dao.id2user[cu],j)
+                        umean = self.dao.userMeans[self.dao.id2user[cu]]
                         sum += (rui-umean)*(ruj-umean)
-                        d1 += (rui-umean)**2
-                    for r in self.dao.user:
-                        ui = self.dao.rating(r,i)
-                        um = self.dao.userMeans[r]
-                        d2 += (ui-um)**2
+                        d2 += (rui-umean)**2
                     try:
                         denom = sqrt(d1*d2)
                         corr = float(sum) / denom
@@ -137,15 +135,12 @@ class TSWalker(Recommender):
         print 'The item correlation has been figured out.'
     def proOfK(self,u,i,k):
         res = []
-        urj = []
-        nk = float(k / 2)
-        for x,y in self.dao.trainingmatrix.matrix_User[self.dao.getUserId(u)]:
-            if y <> 0:
-                urj.append(x)
-        for j in urj:
-            res.append(self.itemSim[i][j][1])
-        map(lambda x:x / (1+exp(-nk)), res)
-        nres = list(res)
+        nk = float(k) / 2
+        ui,ur = self.dao.userRated(u)
+        for j in ui:
+            res.append(self.itemSim[i][self.dao.id2item[j]])
+        denom = 1+exp(-nk)
+        nres = map(lambda x:(x/denom), res)
         return max(nres)
                             
           

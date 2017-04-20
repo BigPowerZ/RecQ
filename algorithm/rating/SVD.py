@@ -7,21 +7,21 @@ class SVD(IterativeRecommender):
 
     def initModel(self):
         super(SVD, self).initModel()
-        self.Bu = np.random.rand(self.dao.trainingSize()[0])  # biased value of user
-        self.Bi = np.random.rand(self.dao.trainingSize()[1])  # biased value of item
+        self.Bu = np.random.rand(self.dao.trainingSize()[0])/5  # bias value of user
+        self.Bi = np.random.rand(self.dao.trainingSize()[1])/5  # bias value of item
 
     def buildModel(self):
         iteration = 0
         while iteration < self.maxIter:
             self.loss = 0
             for entry in self.dao.trainingData:
-                u, i, r = entry
-                u = self.dao.getUserId(u)
-                i = self.dao.getItemId(i)
-                error = r-self.P[u].dot(self.Q[i])-self.dao.globalMean-self.Bi[i]-self.Bu[u]
+                user, item, rating = entry
+                u = self.dao.user[user]
+                i = self.dao.item[item]
+                error = rating-self.predict(user,item)
                 self.loss+=error**2
-                p = self.P[u].copy()
-                q = self.Q[i].copy()
+                p = self.P[u]
+                q = self.Q[i]
                 self.loss += self.regU * p.dot(p) + self.regI * q.dot(q)
                 bu = self.Bu[u]
                 bi = self.Bi[i]
@@ -36,8 +36,16 @@ class SVD(IterativeRecommender):
 
     def predict(self,u,i):
         if self.dao.containsUser(u) and self.dao.containsItem(i):
-            u = self.dao.getUserId(u)
-            i = self.dao.getItemId(i)
+            u = self.dao.user[u]
+            i = self.dao.item[i]
             return self.P[u].dot(self.Q[i])+self.dao.globalMean+self.Bi[i]+self.Bu[u]
         else:
             return self.dao.globalMean
+
+    def predictForRanking(self,u):
+        'invoked to rank all the items for the user'
+        if self.dao.containsUser(u):
+            u = self.dao.getUserId(u)
+            return self.Q.dot(self.P[u])+self.dao.globalMean + self.Bi + self.Bu[u]
+        else:
+            return np.array([self.dao.globalMean] * len(self.dao.item))

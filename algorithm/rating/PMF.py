@@ -9,13 +9,13 @@ class PMF(IterativeRecommender):
         while iteration < self.maxIter:
             self.loss = 0
             for entry in self.dao.trainingData:
-                u, i, r = entry
-                u = self.dao.getUserId(u)
-                i = self.dao.getItemId(i)
-                error = r - self.P[u].dot(self.Q[i])
+                user, item, rating = entry
+                u = self.dao.user[user] #get user id
+                i = self.dao.item[item] #get item id
+                error = rating - self.P[u].dot(self.Q[i])
                 self.loss += error**2
-                p = self.P[u].copy()
-                q = self.Q[i].copy()
+                p = self.P[u]
+                q = self.Q[i]
                 self.loss += self.regU * p.dot(p) + self.regI * q.dot(q)
 
                 #update latent vectors

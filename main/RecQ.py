@@ -5,6 +5,7 @@ from tool.file import FileIO
 from evaluation.dataSplit import *
 from multiprocessing import Process,Manager
 from tool.file import FileIO
+from time import strftime,localtime,time
 class RecQ(object):
     def __init__(self,config):
         self.trainingData = []  # training data
@@ -13,21 +14,28 @@ class RecQ(object):
         self.measure = []
         self.config =config
         self.ratingConfig = LineConfig(config['ratings.setup'])
-
         if self.config.contains('evaluation.setup'):
             self.evaluation = LineConfig(config['evaluation.setup'])
+            binarized = False
+            bottom = 0
+            if self.evaluation.contains('-b'):
+                binarized = True
+                bottom = float(self.evaluation['-b'])
             if self.evaluation.contains('-testSet'):
                 #specify testSet
-                self.trainingData = FileIO.loadDataSet(config,config['ratings'])
-                self.testData = FileIO.loadDataSet(config,self.evaluation['-testSet'],bTest=True)
+
+                self.trainingData = FileIO.loadDataSet(config, config['ratings'],binarized=binarized,threshold=bottom)
+                self.testData = FileIO.loadDataSet(config, self.evaluation['-testSet'], bTest=True,binarized=binarized,threshold=bottom)
+
             elif self.evaluation.contains('-ap'):
                 #auto partition
-                self.trainingData = FileIO.loadDataSet(config,config['ratings'])
+
+                self.trainingData = FileIO.loadDataSet(config,config['ratings'],binarized=binarized,threshold=bottom)
                 self.trainingData,self.testData = DataSplit.\
-                    dataSplit(self.trainingData,test_ratio=float(self.evaluation['-ap']))
+                    dataSplit(self.trainingData,test_ratio=float(self.evaluation['-ap']),binarized=binarized)
             elif self.evaluation.contains('-cv'):
                 #cross validation
-                self.trainingData = FileIO.loadDataSet(config,config['ratings'])
+                self.trainingData = FileIO.loadDataSet(config, config['ratings'],binarized=binarized,threshold=bottom)
                 #self.trainingData,self.testData = DataSplit.crossValidation(self.trainingData,int(self.evaluation['-cv']))
 
         else:
@@ -58,7 +66,12 @@ class RecQ(object):
             m = manager.dict()
             i = 1
             tasks = []
-            for train,test in DataSplit.crossValidation(self.trainingData,k):
+
+            binarized = False
+            if self.evaluation.contains('-b'):
+                binarized = True
+
+            for train,test in DataSplit.crossValidation(self.trainingData,k,binarized):
                 fold = '['+str(i)+']'
                 if self.config.contains('social'):
                     recommender = self.config['recommender'] + "(self.config,train,test,self.relation,fold)"
@@ -84,8 +97,9 @@ class RecQ(object):
                     total += float(self.measure[j][i].split(':')[1])
                 res.append(measure+':'+str(total/k)+'\n')
             #output result
+            currentTime = strftime("%Y-%m-%d %H-%M-%S", localtime(time()))
             outDir = LineConfig(self.config['output.setup'])['-dir']
-            fileName = self.config['recommender'] +'@'+str(k)+'-fold-cv' + '.txt'
+            fileName = self.config['recommender'] +'@'+currentTime+'-'+str(k)+'-fold-cv' + '.txt'
             FileIO.writeFile(outDir,fileName,res)
 
 
